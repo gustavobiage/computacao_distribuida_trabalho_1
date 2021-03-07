@@ -6,6 +6,7 @@
 #include "client_server.h"
 #include "memory_control.h"
 #include "concurrent_queue.h"
+#include "linked_list.h"
 
 #define SECONDS 1000
 #define MINUTS 60*SECONDS
@@ -20,7 +21,7 @@
 struct thread_par {
 	int client_sockfd;
 	pthread_t* self_pointer;
-	struct c_queue thread_queue;
+	struct c_queue* thread_queue;
 };
 
 void evaluate_args(int argc, char ** argv);

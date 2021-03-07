@@ -1,49 +1,33 @@
-#include "../template/server.h"
+#include "../templates/server.h"
 
-int SERVER_IP;
+char SERVER_IP[15];
 int SERVER_PORT;
 int MAIN_SERVER;
 int MEMORY_SIZE;
-int THREAD_LIMIT;
+int BACKLOG;
 int REGISTER_LIMIT;
 
-char * used_thread;
-int register_cnt;
-int thread_pointer;
-
-pthread_mutex_t mutex;
-|----|---------------|
-|----| linked list
-|------file-------|
-
-// I) Transformar para memória em arquivo
-// II) Realizar implementação de socket no servidor
-// III) Implementar linked list para armazenamento de informações sobre outros servidores
-// IV) Implementar redirecionamento
+struct linked_list server_list;
+pthread_t * threads;
 
 void self_register() {
-	struct registered_server server;
-	server.ip = SERVER_IP;
-	server.port = SERVER_PORT;
-	server.mem_size = MEMORY_SIZE;
-	int size = sizeof(struct registered_server);
-	write_data((char *) &server, 0, size);
+	struct registered_server* server = (struct registered_server*) malloc(sizeof(struct registered_server));
+	strcpy(server->ip, SERVER_IP);
+	server->port = SERVER_PORT;
+	server->mem_size = MEMORY_SIZE;
+	push_front(&server_list, server);
 }
 
 void server_init() {
-	register_cnt = 1;
-	thread_pointer = 0;
-	used_thread = (char*) malloc(THREAD_LIMIT);
-	threads = (pthread_t*) malloc(sizeof(pthread_t) * THREAD_LIMIT);
 	memory_control_init(MEMORY_SIZE);
+	threads = (pthread_t*) malloc(sizeof(pthread_t) * BACKLOG);
 }
 
 void server_destroy() {
-	for (int i = 0; i < THREAD_LIMIT; i++) {
+	for (int i = 0; i < BACKLOG; i++) {
 		pthread_join(threads[i], NULL);
 	}
 	free(threads);
-	free(used_thread);
 	memory_control_destroy();
 }
 
@@ -63,38 +47,47 @@ void* resolve_request(void* arg) {
 	pthread_exit(0);
 }
 
+void prt_server_list() {
+	struct iterator* it = iterator(&server_list);
+	printf("LIST START\n");
+	while (has_next(it)) {
+		struct registered_server* server = (struct registered_server*) next(&it);
+		printf("%s::%d::%d\n", server->ip, server->port, server->mem_size);
+	}
+	printf("LIST END\n");
+}
+
 int main(int argc, char **argv) {
+	list_init(&server_list);
 	evaluate_args(argc, argv);
 
 	server_init();
 
-	if (MAIN_SERVER) {
-		printf("Self registered\n");
-		self_register();
-	}
+	self_register();
 
-	printf("%d %d %d\n", SERVER_IP, SERVER_PORT, MEMORY_SIZE);
+	prt_server_list();
 
-	pthread_t threads[THREAD_LIMIT];
 	pthread_t* thread;
 	struct c_queue thread_queue;
-	queue_init(&thread_queue, THREAD_LIMIT);
-	for (int i = 0; i < THREAD_LIMIT; i++) {
+	queue_init(&thread_queue, BACKLOG);
+	for (int i = 0; i < BACKLOG; i++) {
 		push(&thread_queue, &threads[i]);
 	}
 
-	int i = 0;
+	int client_sockfd;
 
-	printf("Server waiting ...");
+	printf("Server waiting ...\n");
 
 	// CREATE SOCKET
 	// BIND AND LISTEN
 
+	int i = 0;
 	while (1) {
 		thread = (pthread_t*) pop(&thread_queue);
+
 		// ACCEPT (retorna client_sockfd)
-		if (i++ >= THRED_LIMIT) {
-			pthread_join(*thread, NULL)
+		if (i++ >= BACKLOG) {
+			pthread_join(*thread, NULL);
 		}
 
 		struct thread_par* parameters = (struct thread_par*) malloc(sizeof(struct thread_par)); 
@@ -102,9 +95,10 @@ int main(int argc, char **argv) {
 		parameters->self_pointer = thread;
 		parameters->thread_queue = &thread_queue;
 		
-		pthread_init(thread, NULL, resolve_request, parameters);
+		pthread_create(thread, NULL, resolve_request, parameters);
 	}
 	queue_destroy(&thread_queue);
+	list_destroy(&server_list);
 	return 0;
 }
 
@@ -113,27 +107,39 @@ void evaluate_args(int argc, char **argv) {
 	int server_port_set = 0;
 	int main_server_set = 0;
 	int mem_size_set = 0;
+	int backlog_set = 0;
 
 	int pointer = 1;
 	while (pointer < argc) {
 		if (!strcmp(argv[pointer], "--server-ip")) {
 			server_ip_set = 1;
-			sscanf(" %d", argv[++pointer], &SERVER_IP);
+			sscanf(argv[++pointer], " %s", SERVER_IP);
 		} else if (!strcmp(argv[pointer], "--server-port")) {
 			server_port_set = 1;
-			sscanf(" %d", argv[++pointer], &SERVER_PORT);
+			sscanf(argv[++pointer], " %d", &SERVER_PORT);
 		} else if (!strcmp(argv[pointer], "--main-server")) {
 			main_server_set = 1;
 			MAIN_SERVER = 1;
 		} else if (!strcmp(argv[pointer], "--mem-size")) {
 			mem_size_set = 1;
-			sscanf(" %d", argv[++pointer], &MEMORY_SIZE);
+			sscanf(argv[++pointer], " %d", &MEMORY_SIZE);
+		} else if (!strcmp(argv[pointer], "--backlog")) {
+			backlog_set = 1;
+			sscanf(argv[++pointer], " %d", &BACKLOG);
+		} else if (!strcmp(argv[pointer], "--register-server")) {
+			char * server_data = argv[++pointer];
+			int ip1, ip2, ip3, ip4;
+			struct registered_server* server = 
+				(struct registered_server*) malloc(sizeof(struct registered_server));
+			sscanf(server_data, " %d.%d.%d.%d::%d::%d", &ip1, &ip2, &ip3, &ip4, &server->port, &server->mem_size);
+			sprintf(server->ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+			push_back(&server_list, (void *) server);
 		}
 		pointer++;
 	}
 
 	if (!server_ip_set) {
-		SERVER_IP = LOCAL_HOST;
+		strcpy(SERVER_IP, LOCAL_HOST);
 	}
 	if (!server_port_set) {
 		SERVER_PORT = DEFAULT_PORT;
@@ -143,5 +149,8 @@ void evaluate_args(int argc, char **argv) {
 	}
 	if (!mem_size_set) {
 		MEMORY_SIZE = DEFAULT_MEM_SIZE;
+	}
+	if (!backlog_set) {
+		BACKLOG = DEFAULT_BACKLOG;
 	}
 }

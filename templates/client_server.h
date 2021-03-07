@@ -26,7 +26,9 @@ struct client_server_header {
 };
 
 struct registered_server {
-	int ip;
+	// ipv4 é a representação de 4 bytes separados por pontos
+	// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres.
+	char ip[15]; 
 	int port;
 	int mem_size;
 };

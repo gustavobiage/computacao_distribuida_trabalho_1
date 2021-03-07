@@ -1,4 +1,4 @@
-#include "../template/memory_control.h"
+#include "../templates/memory_control.h"
 
 #define NIL -1
 
