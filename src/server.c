@@ -7,20 +7,19 @@ int MEMORY_SIZE;
 int THREAD_LIMIT;
 int REGISTER_LIMIT;
 
-pthread_t * threads;
 char * used_thread;
 int register_cnt;
 int thread_pointer;
 
 pthread_mutex_t mutex;
+|----|---------------|
+|----| linked list
+|------file-------|
 
-pthread_t * get_free_thread() {
-	if (used_thread[thread_pointer]) {
-		pthread_join(threads[thread_pointer], NULL);
-	}
-	used_thread[thread_pointer] = 1;
-	return &threads[thread_pointer++];
-}
+// I) Transformar para memória em arquivo
+// II) Realizar implementação de socket no servidor
+// III) Implementar linked list para armazenamento de informações sobre outros servidores
+// IV) Implementar redirecionamento
 
 void self_register() {
 	struct registered_server server;
@@ -48,6 +47,22 @@ void server_destroy() {
 	memory_control_destroy();
 }
 
+void* resolve_request(void* arg) {
+	printf("THREAD START\n");
+	struct thread_par* parameters = (struct thread_par*) arg;
+	int client_sockfd = parameters->client_sockfd;
+	
+	// TODO resolve request
+
+	close(client_sockfd);
+	pthread_t* self_pointer = parameters->self_pointer;
+	struct c_queue* thread_queue = parameters->thread_queue;
+	push(thread_queue, self_pointer); 
+	free(parameters);
+	printf("THREAD END\n");
+	pthread_exit(0);
+}
+
 int main(int argc, char **argv) {
 	evaluate_args(argc, argv);
 
@@ -56,18 +71,40 @@ int main(int argc, char **argv) {
 	if (MAIN_SERVER) {
 		printf("Self registered\n");
 		self_register();
-		struct registered_server* server = 
-			(struct registered_server*) read_data(0, sizeof(struct registered_server));
-		printf("%d %d %d\n", server->ip, server->port, server->mem_size);
-		// TODO criar thread de log
 	}
 
 	printf("%d %d %d\n", SERVER_IP, SERVER_PORT, MEMORY_SIZE);
-	
-	while (1) {
-	
+
+	pthread_t threads[THREAD_LIMIT];
+	pthread_t* thread;
+	struct c_queue thread_queue;
+	queue_init(&thread_queue, THREAD_LIMIT);
+	for (int i = 0; i < THREAD_LIMIT; i++) {
+		push(&thread_queue, &threads[i]);
 	}
 
+	int i = 0;
+
+	printf("Server waiting ...");
+
+	// CREATE SOCKET
+	// BIND AND LISTEN
+
+	while (1) {
+		thread = (pthread_t*) pop(&thread_queue);
+		// ACCEPT (retorna client_sockfd)
+		if (i++ >= THRED_LIMIT) {
+			pthread_join(*thread, NULL)
+		}
+
+		struct thread_par* parameters = (struct thread_par*) malloc(sizeof(struct thread_par)); 
+		parameters->client_sockfd = client_sockfd;
+		parameters->self_pointer = thread;
+		parameters->thread_queue = &thread_queue;
+		
+		pthread_init(thread, NULL, resolve_request, parameters);
+	}
+	queue_destroy(&thread_queue);
 	return 0;
 }
 
