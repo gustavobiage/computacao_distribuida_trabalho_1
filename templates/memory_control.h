@@ -22,3 +22,5 @@ char* read_data(int, int);
 void memory_control_init(int);
 
 void memory_control_destroy();
+
+void write_log();

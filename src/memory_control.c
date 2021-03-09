@@ -9,7 +9,9 @@ int SQRT_VALUE;
 char * memory;
 sem_t * write_semaphores;
 pthread_mutex_t * mutexes;
+pthread_t logger_thread;
 int * read_cnt;
+int shutdown = 0;
 
 int get_lock_index(int index) {
 	return index / SQRT_VALUE;
@@ -112,6 +114,7 @@ void memory_control_init(int mem_size) {
 	write_semaphores = (sem_t *) malloc(sizeof(sem_t) * SECTION_AMNT);
 	mutexes = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t) * SECTION_AMNT);
 	read_cnt = (int * ) malloc(sizeof(int) * SECTION_AMNT);
+	logger_thread = pthread_create(&logger_thread, NULL, write_log, NULL);
 
 	for (int i = 0; i < SECTION_AMNT; i++) {
 		sem_t* semaphore = &write_semaphores[i];
@@ -125,6 +128,8 @@ void memory_control_init(int mem_size) {
 }
 
 void memory_control_destroy() {
+	shutdown = 1;
+
 	for (int i = 0; i < SECTION_AMNT; i++) {
 		sem_t* semaphore = &write_semaphores[i];
 		sem_destroy(semaphore);
@@ -137,4 +142,21 @@ void memory_control_destroy() {
 	free(write_semaphores);
 	free(mutexes);
 	free(read_cnt);
+}
+
+void write_log() {
+	while(!shutdown) {
+		FILE *fp = fopen("server.log", "w+");
+		
+		// Lock 
+
+		for (int i = 0; i < MEMORY_SIZE; i++) {
+			if (fputc(memory[i], fp) < 0) {
+				perror("Error writing to log file!");
+				break;
+			}
+		}
+		
+		fclose(fp);
+	}
 }
