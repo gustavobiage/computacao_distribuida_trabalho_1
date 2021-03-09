@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
 	self_register();
 
 	prt_server_list();
+	
 
 	pthread_t* thread;
 	struct c_queue thread_queue;
@@ -79,13 +80,25 @@ int main(int argc, char **argv) {
 	printf("Server waiting ...\n");
 
 	// CREATE SOCKET
+	int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	struct sockaddr_in server_address;
+	struct sockaddr_in client_address;
+	server_address.sin_family = AF_INET;
+	server_address.sin_addr.s_addr = htonl(INADDR_ANY);
+	server_address.sin_port = SERVER_PORT;
+
 	// BIND AND LISTEN
+	bind(server_sockfd, (struct sockaddr *) &server_address, sizeof(struct sockaddr_in));
+	listen(server_sockfd, 5);
+	int client_len = sizeof(struct sockaddr_in);
 
 	int i = 0;
 	while (1) {
 		thread = (pthread_t*) pop(&thread_queue);
 
 		// ACCEPT (retorna client_sockfd)
+		client_sockfd = accept(server_sockfd, (struct sockaddr *) &client_address, &client_len);	
+
 		if (i++ >= BACKLOG) {
 			pthread_join(*thread, NULL);
 		}
