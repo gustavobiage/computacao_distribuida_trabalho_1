@@ -35,8 +35,20 @@ void* resolve_request(void* arg) {
 	printf("THREAD START\n");
 	struct thread_par* parameters = (struct thread_par*) arg;
 	int client_sockfd = parameters->client_sockfd;
+	char str[255];
+	int received;
 	
 	// TODO resolve request
+	while (received = recv(client_sockfd, str, 255, 0) != 0) {
+		if (received == -1) {
+			//error
+		}		
+
+		//resolve request
+		char *something;
+
+		send(client_sockfd, &something, sizeof(str), 0);
+	}
 
 	close(client_sockfd);
 	pthread_t* self_pointer = parameters->self_pointer;

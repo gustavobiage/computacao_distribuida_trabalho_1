@@ -6,6 +6,7 @@ int MEMORY_SIZE;
 int SECTION_AMNT;
 int SQRT_VALUE;
 
+const char *FILENAME = "server_mem";
 char * memory;
 sem_t * write_semaphores;
 pthread_mutex_t * mutexes;
@@ -42,7 +43,9 @@ void write_data(char * bytes, int begin, int length) {
 			// LOCK
 			lock_as_writer(sem_wrt);
 		}
-		memory[i] = bytes[i - begin]; 
+		//overhead...
+		write_to_memory(bytes, begin, length);
+		// memory[i] = bytes[i - begin]; 
 	}
 	if (sem_wrt != NULL) {
 		// UNLOCK write
@@ -98,6 +101,7 @@ char * read_data(int begin, int length) {
 			// LOCK
 			lock_as_reader(sem_wrt, mutex_lck, readers);
 		}
+		read_file(bytes, begin, length);
 		bytes[i - begin] = memory[i];
 	}
 	bytes[begin + length] = '\n';
@@ -114,7 +118,13 @@ void memory_control_init(int mem_size) {
 	write_semaphores = (sem_t *) malloc(sizeof(sem_t) * SECTION_AMNT);
 	mutexes = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t) * SECTION_AMNT);
 	read_cnt = (int * ) malloc(sizeof(int) * SECTION_AMNT);
-	logger_thread = pthread_create(&logger_thread, NULL, write_log, NULL);
+	
+	if (fopen(FILENAME, "r+") == NULL) {
+		FILE *memfp = fopen(FILENAME, "w");
+		// Set file with size
+		fseek(memfp, MEMORY_SIZE, SEEK_SET);
+		fclose(memfp);
+	}
 
 	for (int i = 0; i < SECTION_AMNT; i++) {
 		sem_t* semaphore = &write_semaphores[i];
@@ -124,7 +134,7 @@ void memory_control_init(int mem_size) {
 		pthread_mutex_init(mutex, NULL);
 	}
 
-	memset(memory, 0, sizeof(char) * MEMORY_SIZE);
+	// memset(memory, 0, sizeof(char) * MEMORY_SIZE);
 }
 
 void memory_control_destroy() {
@@ -144,19 +154,14 @@ void memory_control_destroy() {
 	free(read_cnt);
 }
 
-void write_log() {
-	while(!shutdown) {
-		FILE *fp = fopen("server.log", "w+");
-		
-		// Lock 
+void write_to_file(char *bytes, int begin, int length) {
+	FILE *filep = fopen(FILENAME, "r+");
+	fseek(filep, 0, begin);
+	fwrite(bytes, sizeof(char), length, filep);
+}
 
-		for (int i = 0; i < MEMORY_SIZE; i++) {
-			if (fputc(memory[i], fp) < 0) {
-				perror("Error writing to log file!");
-				break;
-			}
-		}
-		
-		fclose(fp);
-	}
+void read_file(char *bytes, int begin, int length) {
+	FILE *filep = fopen(FILENAME, "r+");
+	fseek(filep, 0, begin);
+	fread(bytes, sizeof(char), length, filep);
 }
