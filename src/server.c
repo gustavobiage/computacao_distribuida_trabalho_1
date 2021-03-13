@@ -1,6 +1,7 @@
 #include "../templates/server.h"
 
 char SERVER_IP[15];
+char* SLEEP_DURATION;
 int SERVER_PORT;
 int MAIN_SERVER;
 int MEMORY_SIZE;
@@ -71,9 +72,9 @@ void* resolve_request(void* arg) {
 
 	struct header header;
 	read(client_sockfd, &header, sizeof(struct header));
-	if (header.id == READ_DATA) {
+	if (header.id == READ_MEMORY) {
 		resolve_read(header, client_sockfd);
-	} else if (header.id == WRITE_DATA) {
+	} else if (header.id == WRITE_MEMORY) {
 		resolve_write(header, client_sockfd);
 	}
 
@@ -83,6 +84,24 @@ void* resolve_request(void* arg) {
 	push(thread_queue, self_pointer); 
 	free(parameters);
 	pthread_exit(0);
+}
+
+void logger_init() {
+	char command[1000], aux[1000];
+	command[0] = '\0';
+	strcat(command, "./logger");
+	if (SLEEP_DURATION != NULL) {
+		sprintf(aux, " --sleep-duration %s", SLEEP_DURATION);
+		strcat(command, aux);
+	}
+	struct iterator* it = iterator(&server_list);
+	while (has_next(it)) {
+		struct registered_server* server = (struct registered_server*) next(&it);
+		sprintf(aux, " --register-server %s::%d::%d", server->ip, server->port, server->mem_size);
+		strcat(command, aux);
+	}
+	strcat(command, " &");
+	system(command);
 }
 
 void prt_server_list() {
@@ -114,8 +133,6 @@ int main(int argc, char **argv) {
 
 	int client_sockfd;
 
-	printf("Server waiting ...\n");
-
 	// CREATE SOCKET
 	int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
 	struct sockaddr_in server_address;
@@ -134,6 +151,12 @@ int main(int argc, char **argv) {
 	listen(server_sockfd, 5);
 	int client_len = sizeof(struct sockaddr_in);
 
+	if (MAIN_SERVER) {
+		logger_init();
+	}
+
+	printf("Server waiting ...\n");
+	
 	int i = 0;
 	while (1) {
 		thread = (pthread_t*) pop(&thread_queue);
@@ -163,6 +186,7 @@ void evaluate_args(int argc, char **argv) {
 	int main_server_set = 0;
 	int mem_size_set = 0;
 	int backlog_set = 0;
+	int sleep_duration_set = 0;
 
 	int pointer = 1;
 	while (pointer < argc) {
@@ -189,6 +213,10 @@ void evaluate_args(int argc, char **argv) {
 			sscanf(server_data, " %d.%d.%d.%d::%d::%d", &ip1, &ip2, &ip3, &ip4, &server->port, &server->mem_size);
 			sprintf(server->ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
 			push_back(&server_list, (void *) server);
+		} else if (!strcmp(argv[pointer], "--sleep-duration")) {
+			int sleep_len = strlen(argv[++pointer]) + 1;
+			SLEEP_DURATION = (char *) malloc(sizeof(char) * sleep_len);
+			strcpy(SLEEP_DURATION, argv[pointer]);
 		}
 		pointer++;
 	}
@@ -207,5 +235,8 @@ void evaluate_args(int argc, char **argv) {
 	}
 	if (!backlog_set) {
 		BACKLOG = DEFAULT_BACKLOG;
+	}
+	if (!sleep_duration_set) {
+		SLEEP_DURATION = NULL;
 	}
 }

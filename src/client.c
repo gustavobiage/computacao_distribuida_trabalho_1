@@ -31,7 +31,7 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 	int pointer = 0;
 	struct header header;
 	struct header response;
-	header.id = WRITE_DATA;
+	header.id = WRITE_MEMORY;
 	header.arg1 = posicao;
 	header.arg2 = tam_buffer;
 	write(sockfd, &header, len);
@@ -54,9 +54,9 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 			break;
 		}
 	}
-	// TODO realizar redirecionamentos após término desta conexão.
 
 	close_connection(sockfd);	
+	// TODO realizar AQUI os redirecionamentos, somente após término desta conexão.
 }
 
 char* le(struct server* server, int posicao, int tamanho) {
@@ -65,7 +65,7 @@ char* le(struct server* server, int posicao, int tamanho) {
 	int pointer = 0;
 	struct header header;
 	struct header response;
-	header.id = READ_DATA;
+	header.id = READ_MEMORY;
 	header.arg1 = posicao;
 	header.arg2 = tamanho;
 	write(sockfd, &header, len);
