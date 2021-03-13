@@ -12,6 +12,7 @@ CONCURRENT_QUEUE_IMPL = $(SRC_DIR)/concurrent_queue.c
 LINKED_LIST_IMPL = $(SRC_DIR)/linked_list.c
 VECTOR_IMPL = $(SRC_DIR)/vector.c
 FIB_CLIENT_IMPL = $(TESTS_DIR)/fib.c
+LOGGER_IMPL = $(SRC_DIR)/logger.c
 
 # Arquivos não linkados
 SERVER_OBJ = $(OBJECT_DIR)/server.o
@@ -21,34 +22,43 @@ CONCURRENT_QUEUE_OBJ = $(OBJECT_DIR)/concurrent_queue.o
 LINKED_LIST_OBJECT = $(OBJECT_DIR)/linked_list.o
 VECTOR_OBJ = $(OBJECT_DIR)/vector.o
 FIB_CLIENT_OBJ = $(OBJECT_DIR)/fib.o
+LOGGER_OBJ = $(OBJECT_DIR)/logger.o
 
 # Executáveis
 SERVER_EXE = server
 FIB_CLIENT_EXE = fib
 SERVER_PID_FILE = $(TMP_DIR)/server.pid
+LOGGER_EXE = logger
 
 # Cria o diretório dos arquivos, o git não permite commitar diretórios vazios.
 build_resources_dir := $(shell mkdir -p $(RESOURCES_DIR))
 build_tmp_dir := $(shell mkdir -p $(TMP_DIR))
 build_object_dir := $(shell mkdir -p $(OBJECT_DIR))
 
-build: $(SERVER_EXE) $(FIB_CLIENT_EXE)
+build: $(SERVER_EXE) $(LOGGER_EXE) $(FIB_CLIENT_EXE)
 	@echo "success"
 
 testar: build
  	## ./server --server-port 8089 --mem-size 10000 --main-server --register-server "127.0.0.1::8090::10000"
-	@./$(SERVER_EXE) --server-port 8089 --mem-size 10000 --main-server & echo $$! > $(SERVER_PID_FILE) ;
-	@./fib 127.0.0.1 8089 10
+	@./$(SERVER_EXE) --server-port 8089 --mem-size 10000 --main-server &
+	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 10
 	@echo "finalizando servidor"
-	@cat $(SERVER_PID_FILE) | xargs kill
-	# TODO utilizar killall ao invez de kill
+	@killall $(SERVER_EXE)
+	@killall $(LOGGER_EXE)
 
 # server
-$(SERVER_EXE) : $(SERVER_OBJ) $(MEMORY_CONTROL_OBJ) $(CONCURRENT_QUEUE_OBJ) $(LINKED_LIST_OBJECT)
+$(SERVER_EXE) : $(LOGGER_EXE) $(SERVER_OBJ) $(MEMORY_CONTROL_OBJ) $(CONCURRENT_QUEUE_OBJ) $(LINKED_LIST_OBJECT)
 	 gcc -g3 $(SERVER_OBJ) $(MEMORY_CONTROL_OBJ) $(LINKED_LIST_OBJECT) $(CONCURRENT_QUEUE_OBJ) -o $(SERVER_EXE) -fopenmp -lm
 
 $(SERVER_OBJ): $(SERVER_IMPL)
 	gcc -g3 -c $(SERVER_IMPL) -fopenmp -o $(SERVER_OBJ)
+
+# logger
+$(LOGGER_EXE) : $(LOGGER_OBJ) $(CLIENT_OBJ) $(VECTOR_OBJ) $(LINKED_LIST_OBJECT)
+	gcc -g3 $(LOGGER_OBJ) $(CLIENT_OBJ) $(VECTOR_OBJ) $(LINKED_LIST_OBJECT) -fopenmp -lm -o $(LOGGER_EXE)
+
+$(LOGGER_OBJ) : $(LOGGER_IMPL)
+	gcc -g3 -c $(LOGGER_IMPL) -fopenmp -lm -o $(LOGGER_OBJ)
 
 # memory control
 $(MEMORY_CONTROL_OBJ) : $(MEMORY_CONTROL_IMPL)
@@ -79,6 +89,8 @@ $(FIB_CLIENT_EXE) : $(FIB_CLIENT_OBJ) $(CLIENT_OBJ) $(VECTOR_OBJ)
 clean:
 	rm -f $(OBJECT_DIR)/*.o
 	rm -f $(TMP_DIR)/*.pid
+	rm -f $(RESOURCES_DIR)/*.log
 	rm -f $(SERVER_EXE)
 	rm -f $(FIB_CLIENT_EXE)
+	rm -f $(LOGGER_EXE)
 	rm -d -r $(RESOURCES_DIR)

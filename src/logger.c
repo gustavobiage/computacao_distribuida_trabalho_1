@@ -19,7 +19,7 @@ void * resolve_log(void * par) {
 	char output[1000];
 	struct timeval start;
 	gettimeofday(&start, NULL);
-	sprintf(output, "%ld.log", start.tv_usec);
+	sprintf(output, "%s/%ld.log", OUTPUT_DIR, start.tv_usec);
 	FILE* output_file = fopen(output, "w");
 
 	struct iterator* it = iterator(&server_list);

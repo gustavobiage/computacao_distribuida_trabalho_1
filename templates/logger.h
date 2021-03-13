@@ -9,6 +9,7 @@
 #include "server.h"
 
 #define DEFAULT_SLEEP_DURATION "5m"
+#define OUTPUT_DIR "resources"
 
 void logger_init();
 
