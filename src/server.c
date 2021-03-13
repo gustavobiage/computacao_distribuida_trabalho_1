@@ -66,7 +66,9 @@ void resolve_write(struct header header, int client_sockfd) {
 void* resolve_request(void* arg) {
 	struct thread_par* parameters = (struct thread_par*) arg;
 	int client_sockfd = parameters->client_sockfd;
-	
+	char str[255];
+	int received;
+
 	struct header header;
 	read(client_sockfd, &header, sizeof(struct header));
 	if (header.id == READ_DATA) {
@@ -74,6 +76,7 @@ void* resolve_request(void* arg) {
 	} else if (header.id == WRITE_DATA) {
 		resolve_write(header, client_sockfd);
 	}
+
 	close(client_sockfd);
 	pthread_t* self_pointer = parameters->self_pointer;
 	struct c_queue* thread_queue = parameters->thread_queue;
@@ -136,7 +139,7 @@ int main(int argc, char **argv) {
 		thread = (pthread_t*) pop(&thread_queue);
 
 		// ACCEPT (retorna client_sockfd)
-		client_sockfd = accept(server_sockfd, (struct sockaddr *) &client_address, &client_len);
+		client_sockfd = accept(server_sockfd, (struct sockaddr *) &client_address, &client_len);	
 
 		if (i++ >= BACKLOG) {
 			pthread_join(*thread, NULL);
