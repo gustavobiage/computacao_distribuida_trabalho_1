@@ -31,6 +31,8 @@ void write_data(char * bytes, int begin, int length) {
 	int old_lock_index = NIL;
 	sem_t * sem_wrt = NULL;
 
+	FILE *filep = fopen(FILENAME, "r+");
+
 	for (int i = begin; i < begin + length; i++) {
 		lock_index = get_lock_index(i);
 		if (lock_index != old_lock_index) {
@@ -43,12 +45,15 @@ void write_data(char * bytes, int begin, int length) {
 			// LOCK
 			lock_as_writer(sem_wrt);
 		}
+		fseek(filep, i, begin);
 		//overhead...
-		write_to_memory(bytes, begin, length);
+		// writes 1 char at a time
+		fwrite(bytes++, sizeof(char), sizeof(char), filep);
 		// memory[i] = bytes[i - begin]; 
 	}
 	if (sem_wrt != NULL) {
 		// UNLOCK write
+		fclose(filep);
 		sem_post(sem_wrt);
 	}
 }
@@ -87,6 +92,8 @@ char * read_data(int begin, int length) {
 	pthread_mutex_t * mutex_lck = NULL;
 	int * readers = NULL;
 
+	FILE *filep = fopen(FILENAME, "r+");
+
 	for (int i = begin; i < begin + length; i++) {
 		lock_index = get_lock_index(i);
 		if (lock_index != old_lock_index) {
@@ -101,9 +108,11 @@ char * read_data(int begin, int length) {
 			// LOCK
 			lock_as_reader(sem_wrt, mutex_lck, readers);
 		}
-		read_file(bytes, begin, length);
-		bytes[i - begin] = memory[i];
+		fseek(filep, i, begin);
+		fread(bytes++, sizeof(char), sizeof(char), filep);
+		// bytes[i - begin] = memory[i];
 	}
+	fclose(filep);
 	bytes[begin + length] = '\n';
 
 	return bytes;
@@ -152,16 +161,4 @@ void memory_control_destroy() {
 	free(write_semaphores);
 	free(mutexes);
 	free(read_cnt);
-}
-
-void write_to_file(char *bytes, int begin, int length) {
-	FILE *filep = fopen(FILENAME, "r+");
-	fseek(filep, 0, begin);
-	fwrite(bytes, sizeof(char), length, filep);
-}
-
-void read_file(char *bytes, int begin, int length) {
-	FILE *filep = fopen(FILENAME, "r+");
-	fseek(filep, 0, begin);
-	fread(bytes, sizeof(char), length, filep);
 }
