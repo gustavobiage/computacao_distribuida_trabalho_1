@@ -16,24 +16,31 @@
 
 // response
 #define REDIRECT 4
+#define SEND_DATA 10
+#define READ_DATA 11
 #define DATA 5
 #define END_CONNECTION 6
 #define ERROR 7
 
-struct client_server_header {
+struct header {
 	int id;
-	int value;
+	int arg1, arg2;
+};
+
+struct server {
+	// ipv4 é a representação de 4 bytes separados por pontos
+	// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres.
+	char ip[15]; 
+	int port;
 };
 
 struct registered_server {
-	// ipv4 é a representação de 4 bytes separados por pontos
-	// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres.
 	char ip[15]; 
 	int port;
 	int mem_size;
 };
 
-struct redirect_response {
+struct redirect {
 	struct mem_range range;
-	struct registered_server server;
+	struct server server;
 };

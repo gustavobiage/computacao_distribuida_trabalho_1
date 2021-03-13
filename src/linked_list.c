@@ -1,4 +1,5 @@
 #include "../templates/linked_list.h"
+#include <stdio.h>
 
 void push_front(struct linked_list* list, void * data) {
 	struct node* node = (struct node*) malloc(sizeof(struct node));
@@ -11,7 +12,6 @@ void push_front(struct linked_list* list, void * data) {
 		list->head = node;
 	}
 	list->size++;
-	printf("size++ (%d)\n", list->size);
 }
 
 void push_back(struct linked_list* list, void * data) {
@@ -25,7 +25,6 @@ void push_back(struct linked_list* list, void * data) {
 		list->tail = node;
 	}
 	list->size++;
-	printf("size++ (%d)\n", list->size);
 }
 
 void list_init(struct linked_list* list) {
