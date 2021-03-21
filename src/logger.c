@@ -44,18 +44,34 @@ void * resolve_log(void * par) {
 int main(int argc, char** argv) {
 	logger_init();
 	evaluate_args(argc, argv);
-	
+
+	int amount;
+	char unit;
+	int time = 1000;
+	sscanf(SLEEP_DURATION, "%d%c ", &amount, &unit);
+	switch (unit) {
+		case 'd': case 'D':
+			time = time * 24;
+		case 'h': case 'H':
+			time = time * 60;
+		case 'm': case 'M':
+			time = time * 60;
+		case 's': case 'S':
+			break;
+		default:
+			time = 1000 * 60;
+	}
+	time = time * amount;
+
 	pthread_t thread;
 
-	char command[100], f;
-	f = 1;
+	int first = 1;
 	while (1) {
-		sprintf(command, "sleep %s", SLEEP_DURATION);
-		system(command);
+		sleep(time);
 
-		if (!f) {
+		if (!first) {
 			pthread_join(thread, NULL);
-			f = 0;
+			first = 0;
 		}
 
 		pthread_create(&thread, NULL, resolve_log, NULL);
