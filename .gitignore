@@ -4,3 +4,4 @@ server
 fib
 logger
 *.log
+*.mem

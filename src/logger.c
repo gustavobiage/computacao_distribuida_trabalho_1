@@ -20,23 +20,25 @@ void * resolve_log(void * par) {
 	struct timeval start;
 	gettimeofday(&start, NULL);
 	sprintf(output, "%s/%ld.log", OUTPUT_DIR, start.tv_usec);
-	FILE* output_file = fopen(output, "w");
+	FILE* output_file = fopen(output, "wa+");
 
 	struct iterator* it = iterator(&server_list);
 	while (has_next(it)) {
 		struct registered_server* server = (struct registered_server*) next(&it);
 		int pointer = 0;
+		int mem_size = server->mem_size;
 		// Como a memória pode ser na escala de GigaBytes
 		// devemos ler a memória de pouco em pouco
-		while (server->mem_size > 0) {
+		while (mem_size > 0) {
 			int size = fmin(server->mem_size, MAX_BUFFER_SIZE);
 			char* buffer = le((struct server*) server, pointer, size);
 			fwrite(buffer, sizeof(char), size, output_file);
 			pointer += size;
-			server->mem_size -= size;
+			mem_size -= size;
 			free(buffer);
 		}
 	}
+	fflush(output_file);
 	fclose(output_file);
 	pthread_exit(0);
 }
@@ -47,7 +49,7 @@ int main(int argc, char** argv) {
 
 	int amount;
 	char unit;
-	int time = 1000;
+	int time = 1;
 	sscanf(SLEEP_DURATION, "%d%c ", &amount, &unit);
 	switch (unit) {
 		case 'd': case 'D':
@@ -59,10 +61,9 @@ int main(int argc, char** argv) {
 		case 's': case 'S':
 			break;
 		default:
-			time = 1000 * 60;
+			time = 60;
 	}
 	time = time * amount;
-
 	pthread_t thread;
 
 	int first = 1;

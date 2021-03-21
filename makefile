@@ -1,3 +1,4 @@
+# Diretórios
 SRC_DIR = src
 RESOURCES_DIR = resources
 TMP_DIR = $(RESOURCES_DIR)/tmp
@@ -47,6 +48,33 @@ testar: build
 	@killall $(SERVER_EXE)
 	@killall $(LOGGER_EXE)
 
+testar_redirecionamento: build
+	@rm -f server_1.mem
+	@rm -f server_2.mem
+	@./$(SERVER_EXE) --server-name server_1 --server-port 8089 --mem-size 16 --main-server --register-server "127.0.0.1::8090::36" &
+	@./$(SERVER_EXE) --server-name server_2 --server-port 8090 --mem-size 36 &
+	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 51
+	@echo "finalizando servidor"
+	@killall $(SERVER_EXE)
+	@killall $(LOGGER_EXE)
+
+LOGGER_TEST_SERVER_NAME = server
+LOGGER_TEST_MEM_NAME = $(LOGGER_TEST_SERVER_NAME).mem
+LOGGER_TEST_MEM_SIZE=$(shell stat -L -c %s $(RESOURCES_DIR)/filled.mem)
+testar_logger: build
+	@rm -f $(TMP_DIR)/*.log
+	@rm -f $(LOGGER_TEST_SERVER_NAME).mem
+	@cat $(RESOURCES_DIR)/filled.mem > $(LOGGER_TEST_MEM_NAME)
+	./$(SERVER_EXE) --server-name server --sleep-duration 10s --server-port 8089 --mem-size $(LOGGER_TEST_MEM_SIZE) --main-server &
+	echo "|$(LOGGER_TEST_MEM_SIZE)|"
+	sleep 12s
+	@echo "finalizando servidor"
+	@killall $(SERVER_EXE)
+	@killall $(LOGGER_EXE)
+	@echo "Verificando log:"
+	@cat $(TMP_DIR)/*.log
+	@cmp --silent $(LOGGER_TEST_MEM_NAME) $(TMP_DIR)/*.log && echo "### SUCCESS: Files Are Identical! ###" || echo "### WARNING: Files Are Different! ###"
+
 # server
 $(SERVER_EXE) : $(LOGGER_EXE) $(SERVER_OBJ) $(MEMORY_CONTROL_OBJ) $(CONCURRENT_QUEUE_OBJ) $(LINKED_LIST_OBJECT)
 	 gcc -g3 $(SERVER_OBJ) $(MEMORY_CONTROL_OBJ) $(LINKED_LIST_OBJECT) $(CONCURRENT_QUEUE_OBJ) -o $(SERVER_EXE) -fopenmp -lm
@@ -94,4 +122,3 @@ clean:
 	rm -f $(SERVER_EXE)
 	rm -f $(FIB_CLIENT_EXE)
 	rm -f $(LOGGER_EXE)
-	rm -d -r $(RESOURCES_DIR)

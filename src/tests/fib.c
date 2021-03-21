@@ -31,7 +31,7 @@ int main(int argc, char ** argv) {
 		v2 = buffer[0];
 		free(buffer);
 
-		v = (v1 + v2) % 256;
+		v = (v1 + v2) % 128;
 		escreve(&server, i, &v, 1);
 		printf("fib[%d] %c 256 = %d\n", i, '%', v);
 	}

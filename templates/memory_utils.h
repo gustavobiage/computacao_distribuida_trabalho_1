@@ -2,7 +2,7 @@
 #define _MEMORY_UTILS
 
 	struct mem_range {
-		int begin, end;
+		int start, length;
 	};
 
 	int intersect(struct mem_range, struct mem_range);

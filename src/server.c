@@ -1,6 +1,7 @@
 #include "../templates/server.h"
 
 char SERVER_IP[15];
+char* SERVER_NAME;
 char* SLEEP_DURATION;
 int SERVER_PORT;
 int MAIN_SERVER;
@@ -20,7 +21,7 @@ void self_register() {
 }
 
 void server_init() {
-	memory_control_init(MEMORY_SIZE);
+	memory_control_init(SERVER_NAME, MEMORY_SIZE);
 	threads = (pthread_t*) malloc(sizeof(pthread_t) * BACKLOG);
 }
 
@@ -34,15 +35,43 @@ void server_destroy() {
 
 void resolve_read(struct header header, int client_sockfd) {
 	struct header response;
-	response.id = READ_DATA;
-	response.arg1 = header.arg2;
-	// Dizer para o cliente esperar por dados
-	write(client_sockfd, &response, sizeof(struct header));
-	// Ler dados da memória
-	char* buffer = read_data(header.arg1, response.arg1);
-	// Enviar ao cliente dados lido da memória 
-	write(client_sockfd, buffer, response.arg1);
-	free(buffer);
+	int mem_size;
+	int start = header.arg1;
+	int length = header.arg2;
+	struct iterator* it = iterator(&server_list);
+	while (has_next(it)) {
+		struct registered_server* server = (struct registered_server*) next(&it);
+		mem_size = server->mem_size;
+		if (start < mem_size && length > 0) {
+			// Tem intersecção
+			if (!strcmp(server->ip, SERVER_IP) && server->port == SERVER_PORT) {
+				// Sou eu
+				response.id = READ_DATA;
+				response.arg1 = fmin(length, mem_size - start);
+				// Dizer para o cliente esperar por dados
+				write(client_sockfd, &response, sizeof(struct header));
+				// Ler dados da memória
+				char* buffer = read_data(start, response.arg1);
+				// Enviar ao cliente dados lido da memória 
+				write(client_sockfd, buffer, response.arg1);
+				free(buffer);
+				length = length - response.arg1;
+			} else {
+				// Redirecionar
+				response.id = REDIRECT;
+				write(client_sockfd, &response, sizeof(struct header));
+
+				struct redirect redirect;
+				redirect.server = *((struct server*) server);
+				redirect.range.start = fmax(0, start);
+				redirect.range.length = fmin(length, mem_size - start);
+				
+				write(client_sockfd, &redirect, sizeof(struct redirect));
+				length = length - redirect.range.length;
+			}
+		}
+		start = fmax(0, start - mem_size);
+	}
 	// Terminar conexão
 	response.id = END_CONNECTION;
 	write(client_sockfd, &response, sizeof(struct header));
@@ -50,15 +79,44 @@ void resolve_read(struct header header, int client_sockfd) {
 
 void resolve_write(struct header header, int client_sockfd) {
 	struct header response;
-	response.id = SEND_DATA;
-	response.arg1 = header.arg2;
-	// Dizer para o cliente enviar dados a serem escritos
-	write(client_sockfd, &response, sizeof(struct header));
-	char buffer[response.arg1];
-	// Receber do cliente dados a serem escritos
-	read(client_sockfd, buffer, response.arg1);
-	// Escrever dados na memória
-	write_data(buffer, header.arg1, response.arg1);
+	int mem_size;
+	int start = header.arg1;
+	int length = header.arg2;
+	struct iterator* it = iterator(&server_list);
+	while (has_next(it)) {
+		struct registered_server* server = (struct registered_server*) next(&it);
+		mem_size = server->mem_size;
+		if (start < mem_size && length > 0) {
+			// Tem intersecção
+			if (!strcmp(server->ip, SERVER_IP) && server->port == SERVER_PORT) {
+				// Sou eu
+				response.id = SEND_DATA;
+				response.arg1 = fmin(length, mem_size - start);
+				// Dizer para o cliente enviar dados a serem escritos
+				write(client_sockfd, &response, sizeof(struct header));
+				char buffer[response.arg1];
+				// Receber do cliente dados a serem escritos
+				read(client_sockfd, buffer, response.arg1);
+				// Escrever na memória dados recebidos
+				write_data(buffer, start, response.arg1);
+				length = length - response.arg1;
+			} else {
+				// Redirecionar
+				response.id = REDIRECT;
+				write(client_sockfd, &response, sizeof(struct header));
+
+				struct redirect redirect;
+				redirect.server = *((struct server*) server);
+				redirect.range.start = fmax(0, start);
+				redirect.range.length = fmin(length, mem_size - start);
+				write(client_sockfd, &redirect, sizeof(struct redirect));
+				length = length - redirect.range.length;
+			}
+		}
+		start = fmax(0, start - mem_size);
+	}
+	
+
 	// Terminar conexão
 	response.id = END_CONNECTION;
 	write(client_sockfd, &response, sizeof(struct header));
@@ -116,13 +174,9 @@ void prt_server_list() {
 int main(int argc, char **argv) {
 	list_init(&server_list);
 	evaluate_args(argc, argv);
-
 	server_init();
-
 	self_register();
-
 	prt_server_list();
-	
 
 	pthread_t* thread;
 	struct c_queue thread_queue;
@@ -156,7 +210,7 @@ int main(int argc, char **argv) {
 	}
 
 	printf("Server waiting ...\n");
-	
+
 	int i = 0;
 	while (1) {
 		thread = (pthread_t*) pop(&thread_queue);
@@ -181,6 +235,7 @@ int main(int argc, char **argv) {
 }
 
 void evaluate_args(int argc, char **argv) {
+	int server_name_set = 0;
 	int server_ip_set = 0;
 	int server_port_set = 0;
 	int main_server_set = 0;
@@ -190,7 +245,13 @@ void evaluate_args(int argc, char **argv) {
 
 	int pointer = 1;
 	while (pointer < argc) {
-		if (!strcmp(argv[pointer], "--server-ip")) {
+		if (!strcmp(argv[pointer], "--server-name")) {
+			server_name_set = 1;
+			char * server_name = argv[++pointer];
+			int name_len = strlen(server_name) + 1;
+			SERVER_NAME = (char*) malloc(sizeof(char) * name_len);
+			strcpy(SERVER_NAME, server_name);
+		} else if (!strcmp(argv[pointer], "--server-ip")) {
 			server_ip_set = 1;
 			sscanf(argv[++pointer], " %s", SERVER_IP);
 		} else if (!strcmp(argv[pointer], "--server-port")) {
@@ -214,6 +275,7 @@ void evaluate_args(int argc, char **argv) {
 			sprintf(server->ip, "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
 			push_back(&server_list, (void *) server);
 		} else if (!strcmp(argv[pointer], "--sleep-duration")) {
+			sleep_duration_set = 1;
 			int sleep_len = strlen(argv[++pointer]) + 1;
 			SLEEP_DURATION = (char *) malloc(sizeof(char) * sleep_len);
 			strcpy(SLEEP_DURATION, argv[pointer]);
@@ -221,6 +283,9 @@ void evaluate_args(int argc, char **argv) {
 		pointer++;
 	}
 
+	if (!server_name_set) {
+		strcpy(SERVER_NAME, DEFAULT_SERVER_NAME);
+	}
 	if (!server_ip_set) {
 		strcpy(SERVER_IP, LOCAL_HOST);
 	}

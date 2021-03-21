@@ -6,7 +6,7 @@ int MEMORY_SIZE;
 int SECTION_AMNT;
 int SQRT_VALUE;
 
-const char *FILENAME = "server_mem";
+char *FILENAME;
 char * memory;
 sem_t * write_semaphores;
 pthread_mutex_t * mutexes;
@@ -51,8 +51,7 @@ void write_data(char * bytes, int begin, int length) {
 		}
 		//overhead...
 		// writes 1 char at a time
-		fwrite(&bytes[i-begin], sizeof(char), sizeof(char), filep);
-		fseek(filep, 1, SEEK_CUR);
+		fwrite(&bytes[i-begin], sizeof(char), 1, filep);
 	}
 	if (sem_wrt != NULL) {
 		// UNLOCK write
@@ -117,7 +116,6 @@ char * read_data(int begin, int length) {
 			lock_as_reader(sem_wrt, mutex_lck, readers);
 		}
 		fread(&bytes[i - begin], sizeof(char), 1, filep);
-		fseek(filep, 1, SEEK_CUR);
 		// bytes[i - begin] = memory[i];
 	}
 	if (mutex_lck != NULL && sem_wrt != NULL && readers != NULL) {
@@ -129,7 +127,11 @@ char * read_data(int begin, int length) {
 	return bytes;
 }
 
-void memory_control_init(int mem_size) {
+void memory_control_init(char * server_name, int mem_size) {
+	int filename_len = strlen(server_name) + 5; // .mem + '\0'
+	FILENAME = (char*) malloc(sizeof(char) * filename_len);
+	sprintf(FILENAME, "%s.mem", server_name);
+
 	MEMORY_SIZE = mem_size;
 	SQRT_VALUE = (int) sqrt(MEMORY_SIZE);
 	SECTION_AMNT = SQRT_VALUE;

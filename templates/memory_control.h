@@ -21,6 +21,6 @@ void unlock_as_reader(sem_t*, pthread_mutex_t*, int*);
 
 char* read_data(int, int);
 
-void memory_control_init(int);
+void memory_control_init(char*, int);
 
 void memory_control_destroy();

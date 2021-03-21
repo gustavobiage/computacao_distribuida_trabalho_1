@@ -20,7 +20,6 @@ int open_connection(struct server* server) {
 	len = sizeof(address);
 	result = connect(sockfd, (struct sockaddr *) &address, len);
 	if (result == -1) {
-		printf("oops: erro ao estabelecer a conexão (%d)\n", result);
 		return -1;
 	}
 	return sockfd;
@@ -41,7 +40,8 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 	header.arg2 = tam_buffer;
 	write(sockfd, &header, len);
 	struct vector redirects;
-	int j = 0;
+	vector_init(&redirects);
+
 	while (1) {
 		read(sockfd, &response, len);
 		if (response.id == SEND_DATA) {
@@ -51,14 +51,23 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 		} else if (response.id == REDIRECT) {
 			struct redirect* redirect = (struct redirect*) malloc(sizeof(struct redirect));
 			read(sockfd, redirect, sizeof(struct redirect));
-			// TODO O que fazer com o redirect? Deve-se armazena-lo?
+			vector_push_back(&redirects, redirect);
 		} else if (response.id == END_CONNECTION) {
 			break;
 		}
 	}
-
 	close_connection(sockfd);	
-	// TODO realizar AQUI os redirecionamentos, somente após término desta conexão.
+
+	for (int i = 0; i < redirects.size; i++) {
+		struct redirect* redirect = vector_get(&redirects, i);
+		int start = redirect->range.start;
+		int length = redirect->range.length;
+		escreve(&redirect->server, start, buffer + pointer, length);
+		pointer += length;
+		free(redirect);
+	}
+	vector_destroy(&redirects);
+	return buffer;
 }
 
 char* le(struct server* server, int posicao, int tamanho) {
@@ -72,6 +81,7 @@ char* le(struct server* server, int posicao, int tamanho) {
 	header.arg2 = tamanho;
 	write(sockfd, &header, len);
 	struct vector redirects;
+	vector_init(&redirects);
 	char * buffer = (char*) malloc(sizeof(char)*tamanho);
 	while (1) {
 		read(sockfd, &response, len);
@@ -82,13 +92,23 @@ char* le(struct server* server, int posicao, int tamanho) {
 		} else if (response.id == REDIRECT) {
 			struct redirect* redirect = (struct redirect*) malloc(sizeof(struct redirect));
 			read(sockfd, redirect, sizeof(struct redirect));
-			// TODO realizar redirecionamentos após término desta conexão.
+			vector_push_back(&redirects, redirect);
 		} else if (response.id == END_CONNECTION) {
 			break;
 		}
 	}
-	// TODO realizar redirecionamentos após término desta conexão.
-
 	close_connection(sockfd);
+
+	for (int i = 0; i < redirects.size; i++) {
+		struct redirect* redirect = vector_get(&redirects, i);
+		int start = redirect->range.start;
+		int length = redirect->range.length;
+		char * rbuffer = le(&redirect->server, start, length);
+		memcpy(buffer + pointer, rbuffer, sizeof(char)*length);
+		pointer += length;
+		free(rbuffer);
+		free(redirect);
+	}
+	vector_destroy(&redirects);
 	return buffer;
 }
