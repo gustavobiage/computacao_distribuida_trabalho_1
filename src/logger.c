@@ -29,12 +29,12 @@ void * resolve_log(void * par) {
 		// Como a memória pode ser na escala de GigaBytes
 		// devemos ler a memória de pouco em pouco
 		while (server->mem_size > 0) {
-			int size = fmin(server->mem_size, 100);
+			int size = fmin(server->mem_size, MAX_BUFFER_SIZE);
 			char* buffer = le((struct server*) server, pointer, size);
 			fwrite(buffer, sizeof(char), size, output_file);
 			pointer += size;
 			server->mem_size -= size;
-			// TODO free no buffer?
+			free(buffer);
 		}
 	}
 	fclose(output_file);

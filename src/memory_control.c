@@ -30,14 +30,18 @@ void write_data(char * bytes, int begin, int length) {
 	int lock_index;
 	int old_lock_index = NIL;
 	sem_t * sem_wrt = NULL;
-
 	FILE *filep = fopen(FILENAME, "r+");
 
+	char cache[MAX_BUFFER_SIZE];
+	setvbuf(filep, cache, _IONBF, MAX_BUFFER_SIZE);
+
+	fseek(filep, begin, SEEK_SET);
 	for (int i = begin; i < begin + length; i++) {
 		lock_index = get_lock_index(i);
 		if (lock_index != old_lock_index) {
 			if (sem_wrt != NULL) {
 				// UNLOCK
+				fflush(filep);
 				unlock_as_writer(sem_wrt);
 			}
 			// UPDATE control
@@ -45,17 +49,17 @@ void write_data(char * bytes, int begin, int length) {
 			// LOCK
 			lock_as_writer(sem_wrt);
 		}
-		fseek(filep, i, begin);
 		//overhead...
 		// writes 1 char at a time
-		fwrite(bytes++, sizeof(char), sizeof(char), filep);
-		// memory[i] = bytes[i - begin]; 
+		fwrite(&bytes[i-begin], sizeof(char), sizeof(char), filep);
+		fseek(filep, 1, SEEK_CUR);
 	}
 	if (sem_wrt != NULL) {
 		// UNLOCK write
-		fclose(filep);
-		sem_post(sem_wrt);
+		fflush(filep);
+		unlock_as_writer(sem_wrt);
 	}
+	fclose(filep);
 }
 
 void lock_as_reader(sem_t * write_semaphore, pthread_mutex_t * mutex, int * readers) {
@@ -94,6 +98,10 @@ char * read_data(int begin, int length) {
 
 	FILE *filep = fopen(FILENAME, "r+");
 
+	char cache[MAX_BUFFER_SIZE];
+	setvbuf(filep, cache, _IONBF, MAX_BUFFER_SIZE);
+
+	fseek(filep, begin, SEEK_SET);
 	for (int i = begin; i < begin + length; i++) {
 		lock_index = get_lock_index(i);
 		if (lock_index != old_lock_index) {
@@ -108,9 +116,12 @@ char * read_data(int begin, int length) {
 			// LOCK
 			lock_as_reader(sem_wrt, mutex_lck, readers);
 		}
-		fseek(filep, i, begin);
-		fread(bytes++, sizeof(char), sizeof(char), filep);
+		fread(&bytes[i - begin], sizeof(char), 1, filep);
+		fseek(filep, 1, SEEK_CUR);
 		// bytes[i - begin] = memory[i];
+	}
+	if (mutex_lck != NULL && sem_wrt != NULL && readers != NULL) {
+		unlock_as_reader(sem_wrt, mutex_lck, readers);
 	}
 	fclose(filep);
 	bytes[begin + length] = '\n';
@@ -127,13 +138,6 @@ void memory_control_init(int mem_size) {
 	write_semaphores = (sem_t *) malloc(sizeof(sem_t) * SECTION_AMNT);
 	mutexes = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t) * SECTION_AMNT);
 	read_cnt = (int * ) malloc(sizeof(int) * SECTION_AMNT);
-	
-	if (fopen(FILENAME, "r+") == NULL) {
-		FILE *memfp = fopen(FILENAME, "w");
-		// Set file with size
-		fseek(memfp, MEMORY_SIZE, SEEK_SET);
-		fclose(memfp);
-	}
 
 	for (int i = 0; i < SECTION_AMNT; i++) {
 		sem_t* semaphore = &write_semaphores[i];
@@ -143,7 +147,12 @@ void memory_control_init(int mem_size) {
 		pthread_mutex_init(mutex, NULL);
 	}
 
-	// memset(memory, 0, sizeof(char) * MEMORY_SIZE);
+	if (fopen(FILENAME, "r+") == NULL) {
+		FILE *memfp = fopen(FILENAME, "w");
+		fclose(memfp);
+		// Set file with size
+		truncate(FILENAME, MEMORY_SIZE);
+	}
 }
 
 void memory_control_destroy() {

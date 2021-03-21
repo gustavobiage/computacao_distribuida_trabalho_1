@@ -12,6 +12,11 @@ int open_connection(struct server* server) {
 	address.sin_port = server->port;
 	address.sin_addr = addr;
 
+	// Permite re-utilizar a mesma porta por vários processos.
+	// Resolve o problema de testes consecutivos resultarem na porta ainda estar ocupada.
+	int optval = 1;
+	setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+
 	len = sizeof(address);
 	result = connect(sockfd, (struct sockaddr *) &address, len);
 	if (result == -1) {
@@ -50,9 +55,6 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 		} else if (response.id == END_CONNECTION) {
 			break;
 		}
-		if (j++ > 10) {
-			break;
-		}
 	}
 
 	close_connection(sockfd);	
@@ -75,7 +77,7 @@ char* le(struct server* server, int posicao, int tamanho) {
 		read(sockfd, &response, len);
 		if (response.id == READ_DATA) {
 			int data_length = response.arg1;
-			read(sockfd, buffer + pointer, data_length);
+			read(sockfd, buffer + pointer, data_length*sizeof(char));
 			pointer += data_length;
 		} else if (response.id == REDIRECT) {
 			struct redirect* redirect = (struct redirect*) malloc(sizeof(struct redirect));

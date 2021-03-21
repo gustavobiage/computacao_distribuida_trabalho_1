@@ -36,10 +36,11 @@ build_tmp_dir := $(shell mkdir -p $(TMP_DIR))
 build_object_dir := $(shell mkdir -p $(OBJECT_DIR))
 
 build: $(SERVER_EXE) $(LOGGER_EXE) $(FIB_CLIENT_EXE)
-	@echo "success"
+	@echo "construído com success"
 
 testar: build
  	## ./server --server-port 8089 --mem-size 10000 --main-server --register-server "127.0.0.1::8090::10000"
+	@rm -f server_mem
 	@./$(SERVER_EXE) --server-port 8089 --mem-size 10000 --main-server &
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 10
 	@echo "finalizando servidor"

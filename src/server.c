@@ -35,7 +35,7 @@ void server_destroy() {
 void resolve_read(struct header header, int client_sockfd) {
 	struct header response;
 	response.id = READ_DATA;
-	response.arg1 = header.arg2 - header.arg1 + 1;
+	response.arg1 = header.arg2;
 	// Dizer para o cliente esperar por dados
 	write(client_sockfd, &response, sizeof(struct header));
 	// Ler dados da memória
@@ -51,7 +51,7 @@ void resolve_read(struct header header, int client_sockfd) {
 void resolve_write(struct header header, int client_sockfd) {
 	struct header response;
 	response.id = SEND_DATA;
-	response.arg1 = header.arg2 - header.arg1 + 1;
+	response.arg1 = header.arg2;
 	// Dizer para o cliente enviar dados a serem escritos
 	write(client_sockfd, &response, sizeof(struct header));
 	char buffer[response.arg1];

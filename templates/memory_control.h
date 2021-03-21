@@ -5,6 +5,8 @@
 #include <math.h>
 #include <string.h>
 
+#define MAX_BUFFER_SIZE 100
+
 int get_lock_index(int);
 
 void lock_as_writer(sem_t*);
