@@ -152,9 +152,9 @@ void memory_control_init(char * server_name, int mem_size) {
 	if (fopen(FILENAME, "r+") == NULL) {
 		FILE *memfp = fopen(FILENAME, "w");
 		fclose(memfp);
-		// Set file with size
-		truncate(FILENAME, MEMORY_SIZE);
 	}
+	// Set file with size
+	truncate(FILENAME, MEMORY_SIZE);
 }
 
 void memory_control_destroy() {

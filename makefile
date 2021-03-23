@@ -41,22 +41,73 @@ build: $(SERVER_EXE) $(LOGGER_EXE) $(FIB_CLIENT_EXE)
 
 testar: build
  	## ./server --server-port 8089 --mem-size 10000 --main-server --register-server "127.0.0.1::8090::10000"
-	@rm -f server_mem
-	@./$(SERVER_EXE) --server-port 8089 --mem-size 10000 --main-server &
+	@rm -f server.mem
+	@./$(SERVER_EXE) --server-name server --server-port 8089 --mem-size 10000 --main-server &
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 10
 	@echo "finalizando servidor"
-	@killall $(SERVER_EXE)
 	@killall $(LOGGER_EXE)
+	@killall $(SERVER_EXE)
 
 testar_redirecionamento: build
 	@rm -f server_1.mem
 	@rm -f server_2.mem
-	@./$(SERVER_EXE) --server-name server_1 --server-port 8089 --mem-size 16 --main-server --register-server "127.0.0.1::8090::36" &
-	@./$(SERVER_EXE) --server-name server_2 --server-port 8090 --mem-size 36 &
-	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 51
+	@rm -f server_3.mem
+	@rm -f server_4.mem
+	@./$(SERVER_EXE) --server-name server_1 --server-port 8089 --mem-size 25 --main-server \
+	--register-server "127.0.0.1::8090::25" \
+	--register-server "127.0.0.1::8091::25" \
+	--register-server "127.0.0.1::8092::25" &
+	@./$(SERVER_EXE) --server-name server_2 --server-port 8090 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name server_3 --server-port 8091 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name server_4 --server-port 8092 --mem-size 25 &
+	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 24
 	@echo "finalizando servidor"
-	@killall $(SERVER_EXE)
 	@killall $(LOGGER_EXE)
+	@killall $(SERVER_EXE)
+
+testar_hierarquia_memoria: build
+	@rm -f h.mem
+	@rm -f h.1.mem h.2.mem h.3.mem h.4.mem
+	@rm -f h.1.1.mem h.1.2.mem
+	@rm -f h.2.1.mem h.2.2.mem
+	@rm -f h.3.1.mem h.3.2.mem
+	@rm -f h.4.1.mem h.4.2.mem
+	@./$(SERVER_EXE) --server-name h --server-port 8089 --mem-size 0 --main-server \
+	--register-server "127.0.0.1::8090::50" \
+	--register-server "127.0.0.1::8091::50" \
+	--register-server "127.0.0.1::8092::50" \
+	--register-server "127.0.0.1::8093::50" &
+
+	@./$(SERVER_EXE) --server-name h.1 --server-port 8090 --mem-size 0 \
+	--register-server "127.0.0.1::8094::25" \
+	--register-server "127.0.0.1::8095::25" &
+	@./$(SERVER_EXE) --server-name h.1.1 --server-port 8094 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name h.1.2 --server-port 8095 --mem-size 25 &
+
+	@./$(SERVER_EXE) --server-name h.2 --server-port 8091 --mem-size 0 \
+	--register-server "127.0.0.1::8096::25" \
+	--register-server "127.0.0.1::8097::25" &
+	@./$(SERVER_EXE) --server-name h.2.1 --server-port 8096 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name h.2.2 --server-port 8097 --mem-size 25 &
+
+	@./$(SERVER_EXE) --server-name h.3 --server-port 8092 --mem-size 0 \
+	--register-server "127.0.0.1::8098::25" \
+	--register-server "127.0.0.1::8099::25" &
+	@./$(SERVER_EXE) --server-name h.3.1 --server-port 8098 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name h.3.2 --server-port 8099 --mem-size 25 &
+
+	@./$(SERVER_EXE) --server-name h.4 --server-port 8093 --mem-size 0 \
+	--register-server "127.0.0.1::8100::25" \
+	--register-server "127.0.0.1::8101::25" &
+	@./$(SERVER_EXE) --server-name h.4.1 --server-port 8100 --mem-size 25 &
+	@./$(SERVER_EXE) --server-name h.4.2 --server-port 8101 --mem-size 25 &
+
+	# Somente enxerga a raiz da hierarquia
+	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 49
+
+	@echo "finalizando servidor"
+	@killall $(LOGGER_EXE)
+	@killall $(SERVER_EXE)
 
 LOGGER_TEST_SERVER_NAME = server
 LOGGER_TEST_MEM_NAME = $(LOGGER_TEST_SERVER_NAME).mem

@@ -284,6 +284,8 @@ void evaluate_args(int argc, char **argv) {
 	}
 
 	if (!server_name_set) {
+		int name_len = strlen(DEFAULT_SERVER_NAME) + 1;
+		SERVER_NAME = (char*) malloc(sizeof(char) * name_len);
 		strcpy(SERVER_NAME, DEFAULT_SERVER_NAME);
 	}
 	if (!server_ip_set) {

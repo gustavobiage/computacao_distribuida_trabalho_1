@@ -67,7 +67,6 @@ void escreve(struct server* server, int posicao, char * buffer, int tam_buffer) 
 		free(redirect);
 	}
 	vector_destroy(&redirects);
-	return buffer;
 }
 
 char* le(struct server* server, int posicao, int tamanho) {
