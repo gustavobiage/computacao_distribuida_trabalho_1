@@ -28,10 +28,9 @@ LOGGER_OBJ = $(OBJECT_DIR)/logger.o
 # Executáveis
 SERVER_EXE = server
 FIB_CLIENT_EXE = fib
-SERVER_PID_FILE = $(TMP_DIR)/server.pid
 LOGGER_EXE = logger
 
-# Cria o diretório dos arquivos, o git não permite commitar diretórios vazios.
+# Cria o diretório de arquivos, o git não permite commitar diretórios vazios.
 build_resources_dir := $(shell mkdir -p $(RESOURCES_DIR))
 build_tmp_dir := $(shell mkdir -p $(TMP_DIR))
 build_object_dir := $(shell mkdir -p $(OBJECT_DIR))
@@ -43,6 +42,7 @@ testar: build
  	## ./server --server-port 8089 --mem-size 10000 --main-server --register-server "127.0.0.1::8090::10000"
 	@rm -f server.mem
 	@./$(SERVER_EXE) --server-name server --server-port 8089 --mem-size 10000 --main-server &
+	sleep 2s
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 10
 	@echo "finalizando servidor"
 	@killall $(LOGGER_EXE)
@@ -60,6 +60,7 @@ testar_redirecionamento: build
 	@./$(SERVER_EXE) --server-name server_2 --server-port 8090 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name server_3 --server-port 8091 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name server_4 --server-port 8092 --mem-size 25 &
+	sleep 2s
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 24
 	@echo "finalizando servidor"
 	@killall $(LOGGER_EXE)
@@ -102,6 +103,7 @@ testar_hierarquia_memoria: build
 	@./$(SERVER_EXE) --server-name h.4.1 --server-port 8100 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name h.4.2 --server-port 8101 --mem-size 25 &
 
+	sleep 2s
 	# Somente enxerga a raiz da hierarquia
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 49
 
@@ -116,14 +118,12 @@ testar_logger: build
 	@rm -f $(TMP_DIR)/*.log
 	@rm -f $(LOGGER_TEST_SERVER_NAME).mem
 	@cat $(RESOURCES_DIR)/filled.mem > $(LOGGER_TEST_MEM_NAME)
-	./$(SERVER_EXE) --server-name server --sleep-duration 10s --server-port 8089 --mem-size $(LOGGER_TEST_MEM_SIZE) --main-server &
-	echo "|$(LOGGER_TEST_MEM_SIZE)|"
+	@./$(SERVER_EXE) --server-name server --sleep-duration 10s --server-port 8089 --mem-size $(LOGGER_TEST_MEM_SIZE) --main-server &
 	sleep 12s
 	@echo "finalizando servidor"
 	@killall $(SERVER_EXE)
 	@killall $(LOGGER_EXE)
-	@echo "Verificando log:"
-	@cat $(TMP_DIR)/*.log
+	@echo "Verificação:"
 	@cmp --silent $(LOGGER_TEST_MEM_NAME) $(TMP_DIR)/*.log && echo "### SUCCESS: Files Are Identical! ###" || echo "### WARNING: Files Are Different! ###"
 
 # server
