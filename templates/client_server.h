@@ -1,39 +1,52 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <stdio.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
+#ifndef _CLIENT_SERVER
+#define _CLIENT_SERVER
 
-#include "memory_utils.h"
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <stdio.h>
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+	#include <unistd.h>
+	#include <stdlib.h>
+	#include <string.h>
 
-// request
-#define READ_DATA 0
-#define WRITE_DATA 2
-#define REGISTER_SERVER 3
+	#include "memory_utils.h"
 
-// response
-#define REDIRECT 4
-#define DATA 5
-#define END_CONNECTION 6
-#define ERROR 7
+	// request
+	#define READ_MEMORY 0
+	#define WRITE_MEMORY 2
+	#define REGISTER_SERVER 3
 
-struct client_server_header {
-	int id;
-	int value;
-};
+	// response
+	#define REDIRECT 4
+	#define SEND_DATA 10
+	#define READ_DATA 11
+	#define DATA 5
+	#define END_CONNECTION 6
+	#define ERROR 7
 
-struct registered_server {
-	// ipv4 é a representação de 4 bytes separados por pontos
-	// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres.
-	char ip[15]; 
-	int port;
-	int mem_size;
-};
+	struct header {
+		int id;
+		int arg1, arg2;
+	};
 
-struct redirect_response {
-	struct mem_range range;
-	struct registered_server server;
-};
+	struct server {
+		// ipv4 é a representação de 4 bytes separados por pontos.
+		// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres,
+		// No final, temos algo no formato "%d%d%d.%d%d%d.%d%d%d.%d%d%d\0"
+		char ip[16];
+		int port;
+	};
+
+	struct registered_server {
+		char ip[16];
+		int port;
+		int mem_size;
+	};
+
+	struct redirect {
+		struct mem_range range;
+		struct server server;
+	};
+
+#endif

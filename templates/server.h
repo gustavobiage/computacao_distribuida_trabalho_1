@@ -13,6 +13,7 @@
 #define HOURS 60*MINUTS
 #define DAYS 24*HOURS
 
+#define DEFAULT_SERVER_NAME "server"
 #define LOCAL_HOST "127.0.0.1"
 #define DEFAULT_PORT 8081
 #define DEFAULT_BACKLOG 10

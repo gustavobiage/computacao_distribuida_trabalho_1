@@ -1,3 +1,7 @@
 resources/object_files/
 resources/tmp/
 server
+fib
+logger
+*.log
+*.mem
