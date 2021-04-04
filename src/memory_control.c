@@ -128,9 +128,9 @@ char * read_data(int begin, int length) {
 }
 
 void memory_control_init(char * server_name, int mem_size) {
-	int filename_len = strlen(server_name) + 5; // .mem + '\0'
+	int filename_len = strlen(MEMORY_DIR) + 1 + strlen(server_name) + 5; // '/' + .mem + '\0'
 	FILENAME = (char*) malloc(sizeof(char) * filename_len);
-	sprintf(FILENAME, "%s.mem", server_name);
+	sprintf(FILENAME, "%s/%s.mem", MEMORY_DIR, server_name);
 
 	MEMORY_SIZE = mem_size;
 	SQRT_VALUE = (int) sqrt(MEMORY_SIZE);

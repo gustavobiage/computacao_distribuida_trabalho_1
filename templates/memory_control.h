@@ -6,6 +6,7 @@
 #include <string.h>
 
 #define MAX_BUFFER_SIZE 100
+#define MEMORY_DIR "resources/tmp"
 
 int get_lock_index(int);
 

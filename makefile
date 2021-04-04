@@ -28,10 +28,9 @@ LOGGER_OBJ = $(OBJECT_DIR)/logger.o
 # Executáveis
 SERVER_EXE = server
 FIB_CLIENT_EXE = fib
-SERVER_PID_FILE = $(TMP_DIR)/server.pid
 LOGGER_EXE = logger
 
-# Cria o diretório dos arquivos, o git não permite commitar diretórios vazios.
+# Cria o diretório de arquivos, o git não permite commitar diretórios vazios.
 build_resources_dir := $(shell mkdir -p $(RESOURCES_DIR))
 build_tmp_dir := $(shell mkdir -p $(TMP_DIR))
 build_object_dir := $(shell mkdir -p $(OBJECT_DIR))
@@ -41,18 +40,19 @@ build: $(SERVER_EXE) $(LOGGER_EXE) $(FIB_CLIENT_EXE)
 
 testar: build
  	## ./server --server-port 8089 --mem-size 10000 --main-server --register-server "127.0.0.1::8090::10000"
-	@rm -f server.mem
+	@rm -f $(TMP_DIR)/server.mem
 	@./$(SERVER_EXE) --server-name server --server-port 8089 --mem-size 10000 --main-server &
+	sleep 2s
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 10
 	@echo "finalizando servidor"
 	@killall $(LOGGER_EXE)
 	@killall $(SERVER_EXE)
 
 testar_redirecionamento: build
-	@rm -f server_1.mem
-	@rm -f server_2.mem
-	@rm -f server_3.mem
-	@rm -f server_4.mem
+	@rm -f $(TMP_DIR)/server_1.mem
+	@rm -f $(TMP_DIR)/server_2.mem
+	@rm -f $(TMP_DIR)/server_3.mem
+	@rm -f $(TMP_DIR)/server_4.mem
 	@./$(SERVER_EXE) --server-name server_1 --server-port 8089 --mem-size 25 --main-server \
 	--register-server "127.0.0.1::8090::25" \
 	--register-server "127.0.0.1::8091::25" \
@@ -60,18 +60,19 @@ testar_redirecionamento: build
 	@./$(SERVER_EXE) --server-name server_2 --server-port 8090 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name server_3 --server-port 8091 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name server_4 --server-port 8092 --mem-size 25 &
+	sleep 2s
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 24
 	@echo "finalizando servidor"
 	@killall $(LOGGER_EXE)
 	@killall $(SERVER_EXE)
 
 testar_hierarquia_memoria: build
-	@rm -f h.mem
-	@rm -f h.1.mem h.2.mem h.3.mem h.4.mem
-	@rm -f h.1.1.mem h.1.2.mem
-	@rm -f h.2.1.mem h.2.2.mem
-	@rm -f h.3.1.mem h.3.2.mem
-	@rm -f h.4.1.mem h.4.2.mem
+	@rm -f $(TMP_DIR)/h.mem
+	@rm -f $(TMP_DIR)/h.1.mem $(TMP_DIR)/h.2.mem $(TMP_DIR)/h.3.mem $(TMP_DIR)/h.4.mem
+	@rm -f $(TMP_DIR)/h.1.1.mem h.1.2.mem
+	@rm -f $(TMP_DIR)/h.2.1.mem $(TMP_DIR)/h.2.2.mem
+	@rm -f $(TMP_DIR)/h.3.1.mem $(TMP_DIR)/h.3.2.mem
+	@rm -f $(TMP_DIR)/h.4.1.mem $(TMP_DIR)/h.4.2.mem
 	@./$(SERVER_EXE) --server-name h --server-port 8089 --mem-size 0 --main-server \
 	--register-server "127.0.0.1::8090::50" \
 	--register-server "127.0.0.1::8091::50" \
@@ -102,6 +103,7 @@ testar_hierarquia_memoria: build
 	@./$(SERVER_EXE) --server-name h.4.1 --server-port 8100 --mem-size 25 &
 	@./$(SERVER_EXE) --server-name h.4.2 --server-port 8101 --mem-size 25 &
 
+	sleep 2s
 	# Somente enxerga a raiz da hierarquia
 	@./$(FIB_CLIENT_EXE) 127.0.0.1 8089 49
 
@@ -110,20 +112,18 @@ testar_hierarquia_memoria: build
 	@killall $(SERVER_EXE)
 
 LOGGER_TEST_SERVER_NAME = server
-LOGGER_TEST_MEM_NAME = $(LOGGER_TEST_SERVER_NAME).mem
+LOGGER_TEST_MEM_NAME = $(TMP_DIR)/$(LOGGER_TEST_SERVER_NAME).mem
 LOGGER_TEST_MEM_SIZE=$(shell stat -L -c %s $(RESOURCES_DIR)/filled.mem)
 testar_logger: build
 	@rm -f $(TMP_DIR)/*.log
 	@rm -f $(LOGGER_TEST_SERVER_NAME).mem
 	@cat $(RESOURCES_DIR)/filled.mem > $(LOGGER_TEST_MEM_NAME)
-	./$(SERVER_EXE) --server-name server --sleep-duration 10s --server-port 8089 --mem-size $(LOGGER_TEST_MEM_SIZE) --main-server &
-	echo "|$(LOGGER_TEST_MEM_SIZE)|"
+	@./$(SERVER_EXE) --server-name server --sleep-duration 10s --server-port 8089 --mem-size $(LOGGER_TEST_MEM_SIZE) --main-server &
 	sleep 12s
 	@echo "finalizando servidor"
 	@killall $(SERVER_EXE)
 	@killall $(LOGGER_EXE)
-	@echo "Verificando log:"
-	@cat $(TMP_DIR)/*.log
+	@echo "Verificação:"
 	@cmp --silent $(LOGGER_TEST_MEM_NAME) $(TMP_DIR)/*.log && echo "### SUCCESS: Files Are Identical! ###" || echo "### WARNING: Files Are Different! ###"
 
 # server
@@ -169,7 +169,8 @@ $(FIB_CLIENT_EXE) : $(FIB_CLIENT_OBJ) $(CLIENT_OBJ) $(VECTOR_OBJ)
 clean:
 	rm -f $(OBJECT_DIR)/*.o
 	rm -f $(TMP_DIR)/*.pid
-	rm -f $(RESOURCES_DIR)/*.log
+	rm -f $(TMP_DIR)/*.mem
+	rm -f $(TMP_DIR)/*.log
 	rm -f $(SERVER_EXE)
 	rm -f $(FIB_CLIENT_EXE)
 	rm -f $(LOGGER_EXE)

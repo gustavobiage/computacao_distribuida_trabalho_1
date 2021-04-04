@@ -31,14 +31,15 @@
 	};
 
 	struct server {
-		// ipv4 é a representação de 4 bytes separados por pontos
-		// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres.
-		char ip[15]; 
+		// ipv4 é a representação de 4 bytes separados por pontos.
+		// Cada byte pode ir de [0, 255], contendo no máximo 3 caracteres,
+		// No final, temos algo no formato "%d%d%d.%d%d%d.%d%d%d.%d%d%d\0"
+		char ip[16];
 		int port;
 	};
 
 	struct registered_server {
-		char ip[15]; 
+		char ip[16];
 		int port;
 		int mem_size;
 	};
